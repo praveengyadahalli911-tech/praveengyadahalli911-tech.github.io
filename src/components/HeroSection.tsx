@@ -10,13 +10,22 @@ const NAV_LINKS = [
 const HeroSection = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(false);
-  const [showSoundHint, setShowSoundHint] = useState(true);
+  const hasScrolled = useRef(false);
+  const [muted, setMuted] = useState(true);
+  const [videoStarted, setVideoStarted] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setShowSoundHint(false), 5000);
-    return () => clearTimeout(t);
-  }, []);
+  // Start video muted, unmute on first click anywhere
+  const handleFirstClick = () => {
+    if (!videoStarted) {
+      const v = videoRef.current;
+      if (v) {
+        v.muted = false;
+        setMuted(false);
+        setVideoStarted(true);
+        sessionStorage.setItem('heroVideoPlayed', 'true');
+      }
+    }
+  };
 
   // Auto-mute when scrolling past hero
   useEffect(() => {
@@ -25,11 +34,12 @@ const HeroSection = () => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) {
+        if (!entry.isIntersecting && !hasScrolled.current) {
           const v = videoRef.current;
           if (v && !v.muted) {
             v.muted = true;
             setMuted(true);
+            hasScrolled.current = true;
           }
         }
       },
@@ -39,41 +49,23 @@ const HeroSection = () => {
     return () => observer.disconnect();
   }, []);
 
-  // Auto-unmute when scrolling back to hero
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          const v = videoRef.current;
-          if (v && v.muted) {
-            v.muted = false;
-            setMuted(false);
-          }
-        }
-      },
-      { threshold: 0.5 }
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, []);
-
+  // Auto-scroll after 12 seconds
   useEffect(() => {
     let fired = false;
 
     const goToAbout = () => {
       if (fired) return;
       fired = true;
+      const v = videoRef.current;
+      if (v && !v.muted) {
+        v.muted = true;
+        setMuted(true);
+      }
       const about = document.getElementById('about');
       if (about) about.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
-    // Auto-scroll after video ends (looping video, scroll after ~12s)
-    const videoAutoScroll = setTimeout(() => {
-      if (window.scrollY < 50) goToAbout();
-    }, 12000);
+    const videoAutoScroll = setTimeout(goToAbout, 12000);
 
     const onWheel = (e: WheelEvent) => {
       if (fired) return;
@@ -106,16 +98,24 @@ const HeroSection = () => {
     if (!v) return;
     v.muted = !v.muted;
     setMuted(v.muted);
-    setShowSoundHint(false);
+    if (!v.muted) {
+      setVideoStarted(true);
+      sessionStorage.setItem('heroVideoPlayed', 'true');
+    }
   };
 
   return (
-    <section ref={sectionRef} className="relative h-screen w-full overflow-hidden bg-black">
+    <section
+      ref={sectionRef}
+      className="relative h-screen w-full overflow-hidden bg-black cursor-pointer"
+      onClick={handleFirstClick}
+    >
       {/* Video background */}
       <video
         ref={videoRef}
         autoPlay
         loop
+        muted
         playsInline
         preload="auto"
         className="absolute inset-0 h-full w-full object-cover"
@@ -127,8 +127,24 @@ const HeroSection = () => {
       <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-black/40" />
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
 
+      {/* Play button overlay - shows only when video is muted */}
+      {muted && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-white/30 bg-white/10 backdrop-blur-md flex items-center justify-center animate-pulse">
+              <svg className="w-8 h-8 sm:w-10 sm:h-10" viewBox="0 0 24 24" fill="white" stroke="none">
+                <polygon points="6 3 20 12 6 21 6 3" />
+              </svg>
+            </div>
+            <span className="text-white/60 text-[10px] sm:text-xs uppercase tracking-[0.3em] font-kanit">
+              Click anywhere to play
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Content layer */}
-      <div className="relative z-10 flex h-full flex-col">
+      <div className="relative z-10 flex h-full flex-col pointer-events-none">
         {/* Top bar */}
         <FadeIn delay={0} y={-20} className="relative">
           <div className="flex items-center justify-between px-6 md:px-10 pt-6 md:pt-8">
@@ -137,7 +153,8 @@ const HeroSection = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-xs sm:text-sm font-medium uppercase tracking-[0.2em] text-white/80 transition hover:text-white"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs sm:text-sm font-medium uppercase tracking-[0.2em] text-white/80 transition hover:text-white pointer-events-auto"
                   >
                     {link.label}
                   </a>
@@ -147,7 +164,8 @@ const HeroSection = () => {
 
             <a
               href="#contact"
-              className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-medium uppercase tracking-[0.2em] text-white backdrop-blur-md transition hover:bg-white/20 hover:scale-[1.03]"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 sm:px-5 sm:py-2.5 text-[10px] sm:text-xs font-medium uppercase tracking-[0.2em] text-white backdrop-blur-md transition hover:bg-white/20 hover:scale-[1.03] pointer-events-auto"
             >
               Email me
             </a>
@@ -190,7 +208,7 @@ const HeroSection = () => {
         {/* Bottom bar */}
         <div className="flex items-end justify-between px-6 md:px-10 pb-7 sm:pb-10 md:pb-12">
           <FadeIn delay={1.1} y={20}>
-            <a href="#about" aria-label="Scroll to next section" className="group flex flex-col items-center gap-3">
+            <a href="#about" onClick={(e) => e.stopPropagation()} className="group flex flex-col items-center gap-3 pointer-events-auto">
               <span className="text-[9px] sm:text-[10px] font-medium uppercase tracking-[0.35em] text-white/70 transition group-hover:text-white">
                 Scroll
               </span>
@@ -204,17 +222,9 @@ const HeroSection = () => {
           </FadeIn>
 
           <FadeIn delay={1.1} y={20}>
-            <div className="flex items-center gap-3">
-              {showSoundHint && (
-                <span
-                  className="hidden sm:inline text-[10px] font-medium uppercase tracking-[0.25em] text-white/80"
-                  style={{ animation: 'pulseFade 2s ease-in-out infinite' }}
-                >
-                  Tap for sound
-                </span>
-              )}
+            <div className="flex items-center gap-3 pointer-events-auto">
               <button
-                onClick={toggleMute}
+                onClick={(e) => { e.stopPropagation(); toggleMute(); }}
                 aria-label={muted ? 'Unmute video' : 'Mute video'}
                 className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 hover:scale-110"
               >
@@ -240,10 +250,6 @@ const HeroSection = () => {
         @keyframes scrollLine {
           0% { transform: translateY(-100%); }
           100% { transform: translateY(200%); }
-        }
-        @keyframes pulseFade {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
         }
         @keyframes typeIn {
           0% { opacity: 0; transform: translateY(10px); }

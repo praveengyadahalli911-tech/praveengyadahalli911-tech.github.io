@@ -99,16 +99,14 @@ const ContactSection = () => {
                   />
                 </div>
 
-                <div className="flex flex-col gap-2 sm:gap-3">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   <span
-                    className="font-light uppercase tracking-widest text-[#D7E2EA]/50"
-                    style={{ fontSize: 'clamp(0.7rem, 1.1vw, 0.9rem)' }}
+                    className="font-light uppercase tracking-widest text-[#D7E2EA]/50 text-[9px] sm:text-[10px]"
                   >
                     {method.label}
                   </span>
                   <span
-                    className="font-medium text-[#D7E2EA] whitespace-nowrap"
-                    style={{ fontSize: 'clamp(0.9rem, 1.5vw, 1.2rem)' }}
+                    className="font-medium text-[#D7E2EA] text-xs sm:text-sm leading-tight"
                   >
                     {method.value}
                   </span>

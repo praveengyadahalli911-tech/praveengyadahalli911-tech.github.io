@@ -20,6 +20,11 @@ const App = () => {
     }
   }, [loaded]);
 
+  const handlePreloaderComplete = () => {
+    setLoaded(true);
+    window.dispatchEvent(new Event('preloader-done'));
+  };
+
   return (
     <>
       {showPreloader && (
@@ -27,7 +32,7 @@ const App = () => {
           className="fixed inset-0 z-[9999] transition-opacity duration-500"
           style={{ opacity: loaded ? 0 : 1, pointerEvents: loaded ? 'none' : 'auto' }}
         >
-          <Preloader onComplete={() => setLoaded(true)} />
+          <Preloader onComplete={handlePreloaderComplete} />
         </div>
       )}
       <main
